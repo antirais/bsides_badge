@@ -66,6 +66,7 @@ dependencies = [
     { name = "argcomplete" },
     { name = "esptool" },
     { name = "mpremote" },
+    { name = "rich" },
 ]
 
 [package.dev-dependencies]
@@ -78,6 +79,7 @@ requires-dist = [
     { name = "argcomplete", specifier = ">=3.7.2" },
     { name = "esptool", specifier = ">=5.4.0" },
     { name = "mpremote", specifier = ">=1.29.0" },
+    { name = "rich", specifier = ">=15.0.0" },
 ]
 
 [package.metadata.requires-dev]
