@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import argparse
 import html
 import importlib.util
 import json
@@ -20,9 +19,15 @@ import time
 import urllib.parse
 import urllib.request
 
+from argparse import ArgumentParser
+from argparse import Namespace
+from argparse import RawDescriptionHelpFormatter
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
+from subprocess import CalledProcessError
+from subprocess import CompletedProcess
+from subprocess import TimeoutExpired
 from textwrap import dedent
 from typing import Any
 
@@ -81,7 +86,7 @@ def run(
     check: bool = True,
     capture: bool = True,
     timeout: int | None = 10,
-) -> subprocess.CompletedProcess[str]:
+) -> CompletedProcess[str]:
     cmd = shlex.join(command)
     log.debug("executing command: %s", cmd)
     return subprocess.run(  # noqa: S603
@@ -222,6 +227,7 @@ def load_local_defaults() -> dict[str, Any]:
 def read_remote_config(port: str | None) -> dict[str, Any]:
     config = extract_json(remote_read(port, "badge.json"))
     if config:
+        log.debug("remote config: \n%s", config)
         return config
 
     # Upgrade badges that still have the original three settings files.
@@ -270,7 +276,7 @@ def git_commit_info() -> str:
         ).stdout.strip()
         if dirty:
             log.warning("The working tree has uncommitted changes; git info identifies HEAD.")
-    except OSError, subprocess.CalledProcessError:
+    except OSError, CalledProcessError:
         return "unknown"
     return f"{commit} {branch}"
 
@@ -427,14 +433,16 @@ def require_badge_version(value: str | None) -> str:
     return value
 
 
-def command_init(args: argparse.Namespace) -> None:
+def command_init(args: Namespace) -> None:
+    print("Initializing environment.")
     ensure_tools(install=True)
     firmware = latest_firmware()
     path = download_firmware(firmware, args.firmware_dir)
     print(f"MicroPython {firmware.version} at {path}")
 
 
-def command_upload(args: argparse.Namespace) -> str | None:
+def command_upload(args: Namespace) -> str | None:
+    print("Uploading files.")
     ensure_tools()
     version = require_badge_version(args.badge_version)
     port = detect_port(args.port)
@@ -445,7 +453,8 @@ def command_upload(args: argparse.Namespace) -> str | None:
     return upload_tree(port, config)
 
 
-def command_flash(args: argparse.Namespace) -> str | None:
+def command_flash(args: Namespace) -> str | None:
+    print("Flashing firmware.")
     ensure_tools()
     version = require_badge_version(args.badge_version)
     firmware = latest_firmware()
@@ -467,7 +476,8 @@ def command_flash(args: argparse.Namespace) -> str | None:
     return battery_line
 
 
-def command_delete(args: argparse.Namespace) -> str | None:
+def command_delete(args: Namespace) -> str | None:
+    print("Deleting files.")
     ensure_tools()
     port = detect_port(args.port)
     config = read_remote_config(port)
@@ -496,7 +506,8 @@ def command_delete(args: argparse.Namespace) -> str | None:
     return battery_line
 
 
-def command_name(args: argparse.Namespace) -> str | None:
+def command_name(args: Namespace) -> str | None:
+    print("Updating name.")
     ensure_tools()
     port = detect_port(args.port)
     maybe_check_firmware(port, args.skip_version_check)
@@ -511,13 +522,13 @@ def command_name(args: argparse.Namespace) -> str | None:
     return battery_line
 
 
-def add_connection_options(parser: argparse.ArgumentParser, *, version: bool = False) -> None:
+def add_connection_options(parser: ArgumentParser, *, version: bool = False) -> None:
     parser.add_argument("--port", help="serial port (auto-detected by default)")
     if version:
         parser.add_argument("--badge-version", choices=SUPPORTED_BADGES, required=True)
 
 
-def add_metadata_options(parser: argparse.ArgumentParser) -> None:
+def add_metadata_options(parser: ArgumentParser) -> None:
     parser.add_argument("--holder-name", help="also set the holder name")
     parser.add_argument(
         "--no-git-info",
@@ -531,8 +542,8 @@ def add_metadata_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description=__doc__)
+def build_parser() -> ArgumentParser:
+    parser = ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     initialize = subparsers.add_parser(
@@ -546,7 +557,7 @@ def build_parser() -> argparse.ArgumentParser:
     upload = subparsers.add_parser(
         "upload",
         help="upload application files",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=RawDescriptionHelpFormatter,
         description=dedent("""
         Uploads only application files.
 
@@ -563,7 +574,7 @@ def build_parser() -> argparse.ArgumentParser:
     flash = subparsers.add_parser(
         "flash",
         help="erase, flash latest MicroPython, and upload files",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=RawDescriptionHelpFormatter,
         description=dedent("""
         The following commands will try to connect to ESP32 chip on the badge via
         the USB-C connector (the badge has has to be turned on with small switch SW2
@@ -581,7 +592,7 @@ def build_parser() -> argparse.ArgumentParser:
     delete = subparsers.add_parser(
         "delete",
         help="delete all files from the badge",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=RawDescriptionHelpFormatter,
         description=dedent("""
         Delete every file from the MicroPython filesystem (not recoverable).
         """),
@@ -615,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         final_line = args.handler(args)
-    except BadgeToolError, OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired:
+    except BadgeToolError, OSError, CalledProcessError, TimeoutExpired:
         log.exception("error")
         return ReturnCode.ERROR
     except KeyboardInterrupt:
