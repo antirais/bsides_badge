@@ -117,9 +117,9 @@ class GameScreen(bsides.Screen):
         self.pipes.append([float(x), gap_top, gap_h, False])
 
     def _flap(self):
-        self.flaps += 1
         self.vy = FLAP_V
         self.wing ^= 1
+        self.flaps += 1
 
     def _step(self):
         self.frame += 1
@@ -150,8 +150,8 @@ class GameScreen(bsides.Screen):
             p[0] -= SCROLL
             if not p[3] and p[0] + PIPE_W < BIRD_X:
                 p[3] = True
-                self.flaps = 0
                 self.score += max(1, 5 - self.flaps)
+                self.flaps = 0
 
         if self.pipes[0][0] + PIPE_W < 0:
             self.pipes.pop(0)
