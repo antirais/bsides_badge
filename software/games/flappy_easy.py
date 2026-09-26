@@ -5,7 +5,7 @@ import uasyncio as asyncio
 import urandom
 
 
-GAME_NAME = "Linnumäng"
+GAME_NAME = "Flappy Bird Easy"
 
 BTN_NEXT = bsides.BTN_NEXT
 BTN_PREV = bsides.BTN_PREV
