@@ -39,7 +39,7 @@ from rich.logging import RichHandler
 
 LOG_LEVEL = logging.getLevelNamesMapping().get(
     os.getenv("LOG_LEVEL", "").upper(),
-    "WARNING",
+    "INFO",
 )
 logging.basicConfig(
     format="{message}",
