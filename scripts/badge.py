@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# PYTHON_ARGCOMPLETE_OK
 """Prepare and manage BSides Tallinn ESP32-C3 badges."""
 
 from __future__ import annotations
@@ -21,10 +22,12 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+import argcomplete
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SOFTWARE_DIR = ROOT / "software"
-DEFAULT_FIRMWARE_DIR = ROOT / ".cache" / "firmware"
+DEFAULT_FIRMWARE_DIR = ROOT / ".cache/firmware"
 DOWNLOAD_PAGE = "https://micropython.org/download/ESP32_GENERIC_C3/"
 SUPPORTED_BADGES = ("2025_prototype", "2025", "2026")
 SKIPPED_NAMES = {".ds_store", "badge.json", "requirements.txt"}
@@ -132,7 +135,7 @@ def detect_port(explicit: str | None) -> str | None:
     if explicit:
         return explicit
     try:
-        from serial.tools import list_ports
+        from serial.tools import list_ports  # noqa: PLC0415
     except ImportError:
         print("Serial-port detection unavailable; tools will use auto-detection.")
         return None
@@ -489,34 +492,73 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    initialize = subparsers.add_parser("init", help="install tools and download latest stable firmware")
+    initialize = subparsers.add_parser(
+        "init",
+        help="install tools and download latest stable firmware",
+        description="Initialize the workstation.",
+    )
     initialize.add_argument("--firmware-dir", type=Path, default=DEFAULT_FIRMWARE_DIR)
     initialize.set_defaults(handler=command_init)
 
-    upload = subparsers.add_parser("upload", help="upload application files")
+    upload = subparsers.add_parser(
+        "upload",
+        help="upload application files",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=dedent("""
+        Uploads only application files.
+
+        The `upload` command replaces the badge's entire `/logos` directory with the
+        current sponsor set, so logos removed from the repository do not remain on the
+        badge.
+        """),
+    )
     add_connection_options(upload, version=True)
     add_metadata_options(upload)
     upload.add_argument("--skip-version-check", action="store_true")
     upload.set_defaults(handler=command_upload)
 
-    flash = subparsers.add_parser("flash", help="erase, flash latest MicroPython, and upload files")
+    flash = subparsers.add_parser(
+        "flash",
+        help="erase, flash latest MicroPython, and upload files",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=dedent("""
+        The following commands will try to connect to ESP32 chip on the badge via
+        the USB-C connector (the badge has has to be turned on with small switch SW2
+        near the SELECT button).
+
+        Erase the chip, flash that image, and uploads the application.
+        """),
+    )
     add_connection_options(flash, version=True)
     add_metadata_options(flash)
     flash.add_argument("--firmware-dir", type=Path, default=DEFAULT_FIRMWARE_DIR)
     flash.add_argument("--baud", type=int, default=460800)
     flash.set_defaults(handler=command_flash)
 
-    delete = subparsers.add_parser("delete", help="delete all files from the badge")
+    delete = subparsers.add_parser(
+        "delete",
+        help="delete all files from the badge",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=dedent("""
+        Delete every file from the MicroPython filesystem (not recoverable).
+        """),
+    )
     add_connection_options(delete)
     delete.set_defaults(handler=command_delete)
 
-    name = subparsers.add_parser("name", help="write the holder name to badge.json")
+    name = subparsers.add_parser(
+        "name",
+        help="write the holder name to badge.json",
+        description="Set or change the holder's name.",
+    )
     add_connection_options(name)
     name.add_argument("name")
     name.add_argument("--badge-version", choices=SUPPORTED_BADGES)
     name.add_argument("--skip-version-check", action="store_true")
     name.add_argument("--no-git-info", action="store_true")
     name.set_defaults(handler=command_name)
+
+    argcomplete.autocomplete(parser)
     return parser
 
 
