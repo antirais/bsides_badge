@@ -1,4 +1,3 @@
-import contextlib
 import json
 import os
 
@@ -82,7 +81,9 @@ def _read_json(filename):
         with open(filename) as stream:
             value = json.load(stream)
             return value if isinstance(value, dict) else {}
-    except (OSError, ValueError):
+    except OSError:
+        return {}
+    except ValueError:
         return {}
 
 
@@ -93,8 +94,10 @@ def save_badge_config(config):
 
 def _remove_legacy_files():
     for filename in ("params.json", "id.txt", "yourname.txt"):
-        with contextlib.suppress(OSError):
-            os.remove(filename)
+        try:  # noqa: SIM105
+            os.remove(filename)  # noqa: PTH107
+        except OSError:
+            pass
 
 
 def load_badge_config():
