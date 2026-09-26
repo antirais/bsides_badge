@@ -36,7 +36,7 @@ def read_battery_voltage(pin_number, samples=8):
     from machine import Pin
 
     adc = ADC(Pin(pin_number))
-    try:
+    try:  # noqa: SIM105
         adc.atten(ADC.ATTN_0DB)
     except AttributeError:
         pass

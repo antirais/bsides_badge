@@ -1,23 +1,32 @@
 """BSides badge user interface and application entry point."""
 
-import sys
-import os
 import gc
-import uasyncio as asyncio
-import time, micropython
-from machine import Pin, I2C, RTC
-import ssd1306
+import os
+import sys
+import time
+
 import bsides_logo
+import micropython
 import rgb_leds
-from badge_config import (
-    format_device_id, hardware_for, load_badge_config, save_badge_config)
-from battery import estimate_soc, read_battery_voltage
+import ssd1306
+import uasyncio as asyncio
+
+from badge_config import format_device_id
+from badge_config import hardware_for
+from badge_config import load_badge_config
+from badge_config import save_badge_config
+from battery import estimate_soc
+from battery import read_battery_voltage
+from machine import I2C
+from machine import RTC
+from machine import Pin
+from writer import font6
+from writer import font10
+from writer import freesans20
 
 # Writer
 from writer.writer import Writer
-import writer.freesans20 as freesans20
-import writer.font10 as font10
-import writer.font6 as font6
+
 
 # -----------------------
 # Settings
@@ -33,14 +42,14 @@ HARDWARE = hardware_for(BADGE_VERSION)
 OLED_ADDRESS = HARDWARE["oled_address"]
 
 # Buttons
-BTN_NEXT_PIN = 5      # Next / Increase
-BTN_PREV_PIN = 8      # Previous / Decrease
+BTN_NEXT_PIN = 5  # Next / Increase
+BTN_PREV_PIN = 8  # Previous / Decrease
 BTN_SELECT_PIN = HARDWARE["select_pin"]  # Enter
-BTN_BACK_PIN = 9      # Back
+BTN_BACK_PIN = 9  # Back
 DEBOUNCE_MS = 50
 
 # Auto-repeat
-REPEAT_DELAY = 500     # ms before auto-repeat starts
+REPEAT_DELAY = 500  # ms before auto-repeat starts
 REPEAT_INTERVAL = 10  # ms between repeats
 
 INACTIVITY_TIMEOUT = 5000  # ms
@@ -60,14 +69,13 @@ BTN_PREV = 2
 BTN_SELECT = 3
 BTN_BACK = 4
 
-btn_state = {}       # {btn_id: pressed or not}
-repeat_tasks = {}    # {btn_id: task}
+btn_state = {}  # {btn_id: pressed or not}
+repeat_tasks = {}  # {btn_id: task}
 _last_event_ms = {}  # debounce tracking
 
 i2c_oled = I2C(0, scl=Pin(I2C_SCL), sda=Pin(I2C_SDA))
-oled = ssd1306.SSD1306_I2C(OLED_WIDTH, OLED_HEIGHT, i2c_oled,
-                           addr=OLED_ADDRESS)
-wri6  = Writer(oled, font6, verbose=False)
+oled = ssd1306.SSD1306_I2C(OLED_WIDTH, OLED_HEIGHT, i2c_oled, addr=OLED_ADDRESS)
+wri6 = Writer(oled, font6, verbose=False)
 wri10 = Writer(oled, font10, verbose=False)
 wri20 = Writer(oled, freesans20, verbose=False)
 
@@ -78,22 +86,24 @@ username_lines = None
 # Parameters
 # -----------------------
 
+
 class Parameter:
     def __init__(self, name, value, maxval):
         self.name = name
         self.value = value
         self.maxval = maxval
 
+
 # -----------------------
 # LED effects
 # -----------------------
 
-led_effects    = rgb_leds.LED_EFFECTS
-led_effect     = Parameter("Light_effect", 0, 10)
+led_effects = rgb_leds.LED_EFFECTS
+led_effect = Parameter("Light_effect", 0, 10)
 led_brightness = Parameter("Brightness", 10, 100)
-led_hue        = Parameter("Hue", 180, 360)
-led_sat        = Parameter("Saturation", 100, 100)
-led_speed      = Parameter("Speed", 30, 100)
+led_hue = Parameter("Hue", 180, 360)
+led_sat = Parameter("Saturation", 100, 100)
+led_speed = Parameter("Speed", 30, 100)
 plugin_effect = Parameter("Plugin_effect", 0, 4)
 game_lights_off = Parameter("GameLightsOff", 1, 1)
 
@@ -106,7 +116,7 @@ params = {
     "Hue": led_hue,
     "Saturation": led_sat,
     "Speed": led_speed,
-    "Light_effect" : led_effect,
+    "Light_effect": led_effect,
     "Plugin_effect": plugin_effect,
     "GameLightsOff": game_lights_off,
 }
@@ -127,23 +137,26 @@ params["TetrisHighScore"] = tetris_high_score
 flappy_high_score = Parameter("FlappyHighScore", 0, 9999)
 params["FlappyHighScore"] = flappy_high_score
 
+
 def save_params():
-    badge_config["params"] = {
-        name: param.value for name, param in params.items()
-    }
+    badge_config["params"] = {name: param.value for name, param in params.items()}
     save_badge_config(badge_config)
+
 
 def load_params():
     for name, val in badge_config.get("params", {}).items():
         if name in params:
             params[name].value = val
 
+
 # -----------------------
 # Username and ID
 # -----------------------
 USERNAME = badge_config.get("holder_name") or None
 device_id = badge_config["device_id"]
-print("Device ID: {}".format(device_id))
+print(f"Device ID: {device_id}")
+
+
 # -----------------------
 # Button IRQ handling
 # -----------------------
@@ -153,6 +166,7 @@ def _push_button(btn_id):
     last_activity = time.ticks_ms()
     if button_event:
         button_event.set()
+
 
 def _schedule_push(btn):
     btn_id, pin_state = btn
@@ -166,8 +180,7 @@ def _schedule_push(btn):
         _push_button(btn_id)
         # SELECT repeats only on screens that explicitly opt in. Repeating it
         # globally would repeatedly activate menu entries and other actions.
-        repeat_select = btn_id == BTN_SELECT and \
-                        getattr(screen, "repeat_select", False)
+        repeat_select = btn_id == BTN_SELECT and getattr(screen, "repeat_select", False)
         if btn_id in (BTN_NEXT, BTN_PREV) or repeat_select:
             repeat_tasks[btn_id] = asyncio.create_task(_repeat_task(btn_id))
     else:  # released
@@ -176,19 +189,20 @@ def _schedule_push(btn):
         if t:
             t.cancel()
 
+
 def make_irq(btn_id):
     def handler(pin):
         micropython.schedule(_schedule_push, (btn_id, pin.value()))
+
     return handler
 
+
 def setup_buttons():
-    cfg = [(BTN_NEXT_PIN, BTN_NEXT),
-           (BTN_PREV_PIN, BTN_PREV),
-           (BTN_SELECT_PIN, BTN_SELECT),
-           (BTN_BACK_PIN, BTN_BACK)]
+    cfg = [(BTN_NEXT_PIN, BTN_NEXT), (BTN_PREV_PIN, BTN_PREV), (BTN_SELECT_PIN, BTN_SELECT), (BTN_BACK_PIN, BTN_BACK)]
     for pin_num, btn_id in cfg:
         p = Pin(pin_num, Pin.IN)  # external pull-ups
-        p.irq(trigger=Pin.IRQ_FALLING|Pin.IRQ_RISING, handler=make_irq(btn_id))
+        p.irq(trigger=Pin.IRQ_FALLING | Pin.IRQ_RISING, handler=make_irq(btn_id))
+
 
 async def _repeat_task(btn_id):
     try:
@@ -198,6 +212,7 @@ async def _repeat_task(btn_id):
             await asyncio.sleep_ms(REPEAT_INTERVAL)
     except asyncio.CancelledError:
         return
+
 
 # -----------------------
 # Screen base class
@@ -211,6 +226,7 @@ class Screen:
 
     async def handle_button(self, btn):
         pass
+
 
 # -----------------------
 # Lights screens
@@ -243,7 +259,7 @@ class ParamScreen(Screen):
 
         # Numeric display
         self.writer.set_textpos(self.oled, 50, 0)
-        self.writer.printstring("{}: {:3d}".format(self.param.name, val))
+        self.writer.printstring(f"{self.param.name}: {val:3d}")
         self.oled.show()
 
     async def handle_button(self, btn):
@@ -255,21 +271,26 @@ class ParamScreen(Screen):
             return self.returnscreen(self.oled)
         return self
 
+
 class BrightnessScreen(ParamScreen):
     def __init__(self, oled):
         super().__init__(oled, wri10, led_brightness, LightsScreen, barfill=True, wraparound=False)
+
 
 class SpeedScreen(ParamScreen):
     def __init__(self, oled):
         super().__init__(oled, wri10, led_speed, LightsScreen, barfill=True, wraparound=False)
 
+
 class SaturationScreen(ParamScreen):
     def __init__(self, oled):
         super().__init__(oled, wri10, led_sat, LightsScreen, barfill=False, wraparound=False)
 
+
 class HueScreen(ParamScreen):
     def __init__(self, oled):
         super().__init__(oled, wri10, led_hue, LightsScreen, barfill=False, wraparound=True)
+
 
 class ListScreen(Screen):
     def __init__(self, oled, title, items):
@@ -313,7 +334,7 @@ class ListScreen(Screen):
             y = 20 + row * self.line_height
             prefix = ">" if i == self.index else " "
             self.listwriter.set_textpos(self.oled, y, 0)
-            self.listwriter.printstring("{}{}".format(prefix, self.items[i][0]))
+            self.listwriter.printstring(f"{prefix}{self.items[i][0]}")
 
         self.oled.show()
 
@@ -323,6 +344,7 @@ class ListScreen(Screen):
 
     def on_back(self):
         pass
+
 
 class EffectScreen(ListScreen):
     def __init__(self, oled):
@@ -336,11 +358,12 @@ class EffectScreen(ListScreen):
     def on_back(self):
         return LightsScreen(self.oled)
 
+
 class PluginEffectScreen(ListScreen):
     def __init__(self, oled):
         import plugin_leds
-        super().__init__(oled, "Plug-in effects",
-                         [(name,) for name in plugin_leds.EFFECTS])
+
+        super().__init__(oled, "Plug-in effects", [(name,) for name in plugin_leds.EFFECTS])
         self.index = plugin_effect.value if plugin_effect.value in range(len(self.items)) else 0
         self.offset = max(0, self.index - self.rows + 1)
 
@@ -363,12 +386,15 @@ class PluginScreen(ListScreen):
         return LightsScreen(self.oled)
 
 
-lights_screens = [("Effects", EffectScreen),
-                  ("Brightness", BrightnessScreen),
-                  ("Hue", HueScreen),
-                  ("Saturation", SaturationScreen),
-                  ("Speed", SpeedScreen),
-                  ("Plug-in", PluginScreen)]
+lights_screens = [
+    ("Effects", EffectScreen),
+    ("Brightness", BrightnessScreen),
+    ("Hue", HueScreen),
+    ("Saturation", SaturationScreen),
+    ("Speed", SpeedScreen),
+    ("Plug-in", PluginScreen),
+]
+
 
 class LightsScreen(ListScreen):
     def __init__(self, oled):
@@ -387,6 +413,7 @@ class LightsScreen(ListScreen):
 # Utils screens
 # -----------------------
 
+
 class StopwatchScreen(Screen):
     """
     Simple stopwatch with live updating.
@@ -395,6 +422,7 @@ class StopwatchScreen(Screen):
       PREV:   Reset (when stopped)
       BACK:   Exit
     """
+
     def __init__(self, oled):
         super().__init__(oled)
         self.running = False
@@ -413,7 +441,7 @@ class StopwatchScreen(Screen):
             return
 
     def _fmt(self, ms):
-        s, cs = divmod(ms // 10, 100)      # centiseconds
+        s, cs = divmod(ms // 10, 100)  # centiseconds
         h, s = divmod(s, 3600)
         m, s = divmod(s, 60)
         return "%02d:%02d:%02d.%02d" % (h, m, s, cs)
@@ -422,9 +450,7 @@ class StopwatchScreen(Screen):
         # update elapsed if running
         if self.running:
             now = time.ticks_ms()
-            self.elapsed_ms = time.ticks_add(
-                time.ticks_diff(now, self.start_ms), 0
-            ) + self._paused_base
+            self.elapsed_ms = time.ticks_add(time.ticks_diff(now, self.start_ms), 0) + self._paused_base
 
         self.oled.fill(0)
         # Title
@@ -484,15 +510,14 @@ class StatusScreen(Screen):
         self.oled.text(format_device_id(device_id), 0, 8, 1)
 
         lines = [
-            "HW: {}".format(BADGE_VERSION),
+            f"HW: {BADGE_VERSION}",
             "Git: {}".format(badge_config.get("git_commit", "unknown")),
         ]
         battery_pin = HARDWARE.get("battery_pin")
         if battery_pin is not None:
             try:
                 voltage = read_battery_voltage(battery_pin)
-                lines.append("Bat: {:.2f}V ~{}%".format(
-                    voltage, estimate_soc(voltage)))
+                lines.append(f"Bat: {voltage:.2f}V ~{estimate_soc(voltage)}%")
             except Exception as exc:
                 print("Battery read failed:", exc)
                 lines.append("Bat: read error")
@@ -511,6 +536,7 @@ class StatusScreen(Screen):
 
 
 utils_screens = [("Stopwatch", StopwatchScreen)]
+
 
 class UtilsScreen(ListScreen):
     def __init__(self, oled):
@@ -550,6 +576,7 @@ class FetchNameScreen(Screen):
         RTC().memory(b"wifi_fetch")
         await asyncio.sleep_ms(100)
         import machine
+
         machine.reset()
 
     def _cancel_fetch(self):
@@ -580,6 +607,7 @@ class FetchNameScreen(Screen):
 
         self.oled.show()
 
+
 class CodeRepoScreen(Screen):
     async def handle_button(self, btn):
         if btn in (BTN_SELECT, BTN_BACK):
@@ -597,6 +625,7 @@ class CodeRepoScreen(Screen):
         wri6.printstring("github.com/ BSides-Tallinn/ bsides_badge")
 
         self.oled.show()
+
 
 class SettingsScreen(ListScreen):
     def __init__(self, oled):
@@ -616,10 +645,13 @@ class SettingsScreen(ListScreen):
         return BadgeScreen(self.oled)
 
 
-badge_screens = [("Status", StatusScreen),
-                 ("Settings", SettingsScreen),
-                 ("Fetch Name", FetchNameScreen),
-                 ("Code git", CodeRepoScreen)]
+badge_screens = [
+    ("Status", StatusScreen),
+    ("Settings", SettingsScreen),
+    ("Fetch Name", FetchNameScreen),
+    ("Code git", CodeRepoScreen),
+]
+
 
 class BadgeScreen(ListScreen):
     def __init__(self, oled):
@@ -632,6 +664,7 @@ class BadgeScreen(ListScreen):
     def on_back(self):
         save_params()
         return MenuScreen(self.oled)
+
 
 # -----------------------
 # Sponsors screens
@@ -653,6 +686,7 @@ def unload_sponsor_logos():
                 del sys.modules[module_name]
     gc.collect()
 
+
 class SponsorsScreen(Screen):
     def __init__(self, oled):
         super().__init__(oled)
@@ -662,9 +696,7 @@ class SponsorsScreen(Screen):
         if LOGO_FOLDER not in sys.path:
             sys.path.append(LOGO_FOLDER)
         unload_sponsor_logos()
-        self.logo_modules = sorted(
-            filename[:-3] for filename in os.listdir(LOGO_FOLDER)
-            if filename.endswith(".py"))
+        self.logo_modules = sorted(filename[:-3] for filename in os.listdir(LOGO_FOLDER) if filename.endswith(".py"))
         self.current_logo = 0
         if not self.logo_modules:
             raise RuntimeError("No valid logos found!")
@@ -692,9 +724,11 @@ class SponsorsScreen(Screen):
             return MenuScreen(self.oled)
         return self
 
+
 # -----------------------
 # Text screens
 # -----------------------
+
 
 class TextScreen(Screen):
     def __init__(self, oled, writer, text):
@@ -746,6 +780,7 @@ class TextScreen(Screen):
             return MenuScreen(self.oled)
         return self
 
+
 class AboutScreen(TextScreen):
     def __init__(self, oled):
         text = (
@@ -764,6 +799,7 @@ class OurteamScreen(TextScreen):
             "Volunteers: Kristo, Merli, Hanna, Sten, Beekay, Liam, Hordii, Armin, Alex"
         )
         super().__init__(oled, wri6, text)
+
 
 # -----------------------
 # Menu screen
@@ -786,12 +822,11 @@ def discover_games():
             continue
         module_name = filename[:-3]
         try:
-            module = __import__("games." + module_name, None, None,
-                                ("GAME_NAME", "GameScreen"))
+            module = __import__("games." + module_name, None, None, ("GAME_NAME", "GameScreen"))
             games.append((module.GAME_NAME, module.GameScreen))
         except Exception as exc:
             # One broken optional game should not prevent the badge from booting.
-            print("Cannot load game {}: {}".format(filename, exc))
+            print(f"Cannot load game {filename}: {exc}")
     return games
 
 
@@ -806,14 +841,17 @@ class GamesScreen(ListScreen):
     def on_back(self):
         return MenuScreen(self.oled)
 
+
 class MenuScreen(Screen):
-    items = [("About", AboutScreen),
-             ("Sponsors", SponsorsScreen),
-             ("Our team", OurteamScreen),
-             ("Utils", UtilsScreen),
-             ("Lights", LightsScreen),
-             ("Badge", BadgeScreen),
-             ("Games", GamesScreen)]
+    items = [
+        ("About", AboutScreen),
+        ("Sponsors", SponsorsScreen),
+        ("Our team", OurteamScreen),
+        ("Utils", UtilsScreen),
+        ("Lights", LightsScreen),
+        ("Badge", BadgeScreen),
+        ("Games", GamesScreen),
+    ]
 
     def __init__(self, oled):
         super().__init__(oled)
@@ -828,14 +866,15 @@ class MenuScreen(Screen):
 
     async def handle_button(self, btn):
         if btn == BTN_NEXT:
-            self.index = (self.index+1) % len(MenuScreen.items)
+            self.index = (self.index + 1) % len(MenuScreen.items)
             self.render()
         elif btn == BTN_PREV:
-            self.index = (self.index-1) % len(MenuScreen.items)
+            self.index = (self.index - 1) % len(MenuScreen.items)
             self.render()
         elif btn == BTN_SELECT:
             return MenuScreen.items[self.index][1](self.oled)
         return self
+
 
 # -----------------------
 # UI manager
@@ -846,6 +885,7 @@ game_active = False
 
 def mute_game_lights():
     return bool(game_active and game_lights_off.value)
+
 
 async def ui_task(oled):
     global screen, game_active
@@ -867,10 +907,12 @@ async def ui_task(oled):
         if not getattr(screen, "manages_own_render", False):
             screen.render()
 
+
 def show_bsides_logo(oled):
     oled.fill(0)
     oled.blit(bsides_logo.fb, 0, 0)
     oled.show()
+
 
 def wrap_text(text, writer, max_width, max_height):
     line_height = writer.font.height()
@@ -884,8 +926,8 @@ def wrap_text(text, writer, max_width, max_height):
         while writer.stringlen(word) > max_width:
             for i in range(1, len(word) + 1):
                 if writer.stringlen(word[:i]) > max_width:
-                    lines.append(word[:i-1])
-                    word = word[i-1:]
+                    lines.append(word[: i - 1])
+                    word = word[i - 1 :]
                     break
         test_line = (line + " " + word).strip()
         if writer.stringlen(test_line) <= max_width:
@@ -909,6 +951,7 @@ def wrap_text(text, writer, max_width, max_height):
 
     return lines
 
+
 def show_username(oled, name):
     global username_lines
     oled.fill(0)
@@ -926,6 +969,7 @@ def show_username(oled, name):
 
     oled.show()
 
+
 async def inactivity_task(oled):
     global screen
     last_toggle = time.ticks_ms()
@@ -933,7 +977,9 @@ async def inactivity_task(oled):
 
     while True:
         await asyncio.sleep_ms(500)
-        inactive = (screen == None or isinstance(screen, MenuScreen)) and time.ticks_diff(time.ticks_ms(), last_activity) > INACTIVITY_TIMEOUT
+        inactive = (screen == None or isinstance(screen, MenuScreen)) and time.ticks_diff(
+            time.ticks_ms(), last_activity
+        ) > INACTIVITY_TIMEOUT
         if inactive:
             now = time.ticks_ms()
             if time.ticks_diff(now, last_toggle) >= LOGO_PERIOD:
@@ -958,16 +1004,18 @@ async def main():
     setup_buttons()
     load_params()
     show_bsides_logo(oled)
-    print("Username: {}".format(USERNAME))
+    print(f"Username: {USERNAME}")
 
     tasks = [
-        ui_task(oled), inactivity_task(oled),
-        rgb_leds.neopixel_task(
-            np, led_effect, led_brightness, led_hue, led_sat, led_speed,
-            mute_game_lights)]
+        ui_task(oled),
+        inactivity_task(oled),
+        rgb_leds.neopixel_task(np, led_effect, led_brightness, led_hue, led_sat, led_speed, mute_game_lights),
+    ]
     import plugin_leds
+
     tasks.append(plugin_leds.led_task(plugin_effect, mute_game_lights))
     await asyncio.gather(*tasks)
+
 
 try:
     asyncio.run(main())

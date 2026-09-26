@@ -2,9 +2,10 @@
 
 import math
 import time
-import uasyncio as asyncio
 
 import neopixel
+import uasyncio as asyncio
+
 from machine import Pin
 
 
@@ -56,16 +57,13 @@ def led_eff_rainbow(pixels, oldstate):
     pos = oldstate or 0
     for index in range(len(pixels)):
         hue = ((index * 360 // len(pixels)) + pos) % 360
-        pixels[index] = hsv_to_rgb(
-            hue, led_sat.value / 100, led_brightness.value / 100)
+        pixels[index] = hsv_to_rgb(hue, led_sat.value / 100, led_brightness.value / 100)
     return (pos + led_speed.value / 10) % 360
 
 
 def led_eff_breathe(pixels, oldstate):
     brightness, direction = oldstate or (0, 1)
-    rgb = hsv_to_rgb(
-        led_hue.value, led_sat.value / 100,
-        brightness * led_brightness.value / 100)
+    rgb = hsv_to_rgb(led_hue.value, led_sat.value / 100, brightness * led_brightness.value / 100)
     for index in range(len(pixels)):
         pixels[index] = rgb
     brightness += direction * led_speed.value / 1000
@@ -82,15 +80,13 @@ def led_eff_comet(pixels, oldstate):
     fade = 0.5 + ((led_speed.maxval - led_speed.value) / led_speed.maxval * 0.4)
     for index in range(len(pixels)):
         pixels[index] = tuple(int(value * fade) for value in pixels[index])
-    pixels[head] = hsv_to_rgb(
-        led_hue.value, led_sat.value / 100, led_brightness.value / 100)
+    pixels[head] = hsv_to_rgb(led_hue.value, led_sat.value / 100, led_brightness.value / 100)
     return state + led_speed.value / 100
 
 
 def led_eff_startup(pixels, oldstate):
     head, phase = oldstate or (0, 0)
-    on = hsv_to_rgb(
-        led_hue.value, led_sat.value / 100, led_brightness.value / 100)
+    on = hsv_to_rgb(led_hue.value, led_sat.value / 100, led_brightness.value / 100)
     for index in range(len(pixels)):
         pixels[index] = on if (index <= head) == (phase == 0) else (0, 0, 0)
     if head < len(pixels) - 1:
@@ -122,8 +118,7 @@ def led_eff_rainbow_comet(pixels, oldstate):
     for index in range(len(pixels)):
         red, green, blue = pixels[index]
         pixels[index] = (int(red * fade), int(green * fade), int(blue * fade))
-    pixels[head] = hsv_to_rgb(
-        state["hue"], led_sat.value / 100, led_brightness.value / 100)
+    pixels[head] = hsv_to_rgb(state["hue"], led_sat.value / 100, led_brightness.value / 100)
     state["pos"] += led_speed.value / 100
     state["hue"] = (state["hue"] + max(1, int(led_speed.value / 10))) % 360
     return state
@@ -143,8 +138,7 @@ def led_eff_ping_pong(pixels, oldstate):
     elif position >= count - 1:
         position, direction = count - 1, -1
     head = int(position)
-    rgb = hsv_to_rgb(
-        led_hue.value, led_sat.value / 100, led_brightness.value / 100)
+    rgb = hsv_to_rgb(led_hue.value, led_sat.value / 100, led_brightness.value / 100)
     pixels[head] = rgb
     pixels[count - 1 - head] = rgb
     state["pos"], state["dir"] = position, direction
@@ -178,8 +172,7 @@ def led_eff_aurora(pixels, oldstate):
         wave2 = 0.5 * (1 + math.sin(2 * position - state["p2"]))
         mix = 0.6 * wave1 + 0.4 * (1 - wave2)
         hue = (130 * mix + 280 * (1 - mix)) % 360
-        value = (0.25 + 0.75 * (0.5 * (
-            1 + math.sin(position * 0.8 + state["p2"] / 2)))) * max_value
+        value = (0.25 + 0.75 * (0.5 * (1 + math.sin(position * 0.8 + state["p2"] / 2)))) * max_value
         pixels[index] = hsv_to_rgb(hue, saturation, value)
     speed = max(0.05, led_speed.value / 200)
     state["p1"] += speed * 0.6
@@ -195,8 +188,7 @@ def led_eff_spiral_spin(pixels, oldstate):
     for index in range(count):
         position = (index / count) * (2 * math.pi * 2) + state["phase"]
         value = (0.5 * (1 + math.sin(position))) ** 1.6
-        pixels[index] = hsv_to_rgb(
-            led_hue.value, saturation, base_value * value)
+        pixels[index] = hsv_to_rgb(led_hue.value, saturation, base_value * value)
     state["phase"] += led_speed.value / 200
     return state
 
@@ -234,8 +226,7 @@ LED_EFFECTS = [
 ]
 
 
-async def neopixel_task(pixels, effect, brightness, hue, saturation, speed,
-                        lights_off=None):
+async def neopixel_task(pixels, effect, brightness, hue, saturation, speed, lights_off=None):
     global led_effect, led_brightness, led_hue, led_sat, led_speed
     led_effect = effect
     led_brightness = brightness

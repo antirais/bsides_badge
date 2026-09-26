@@ -7,12 +7,19 @@ import socket
 import ssl
 import struct
 import time
-import uasyncio as asyncio
-from machine import I2C, Pin, RTC, reset
 
 import network
 import ssd1306
-from badge_config import format_device_id, hardware_for, load_badge_config, save_badge_config
+import uasyncio as asyncio
+
+from badge_config import format_device_id
+from badge_config import hardware_for
+from badge_config import load_badge_config
+from badge_config import save_badge_config
+from machine import I2C
+from machine import RTC
+from machine import Pin
+from machine import reset
 
 
 SSID = "bsides-badge"
@@ -28,9 +35,7 @@ BACK_PIN = 9
 config = load_badge_config()
 device_id = config["device_id"]
 hardware = hardware_for(config["badge_version"])
-oled = ssd1306.SSD1306_I2C(
-    128, 64, I2C(0, scl=Pin(1), sda=Pin(0)),
-    addr=hardware["oled_address"])
+oled = ssd1306.SSD1306_I2C(128, 64, I2C(0, scl=Pin(1), sda=Pin(0)), addr=hardware["oled_address"])
 back = Pin(BACK_PIN, Pin.IN)
 next_button = Pin(NEXT_PIN, Pin.IN)
 select_button = Pin(hardware["select_pin"], Pin.IN)
@@ -91,7 +96,7 @@ def disconnect():
 async def connect_wifi():
     global wlan
     wlan = network.WLAN(network.STA_IF)
-    network.hostname("bsides26-{}".format(device_id))
+    network.hostname(f"bsides26-{device_id}")
     wlan.active(True)
     if wlan.isconnected():
         return
@@ -125,9 +130,13 @@ async def update_time():
     finally:
         sock.close()
 
-    if (len(response) != 48 or response[24:32] != query[40:48]
-            or response[0] & 7 != 4 or response[0] >> 6 == 3
-            or not 1 <= response[1] <= 15):
+    if (
+        len(response) != 48
+        or response[24:32] != query[40:48]
+        or response[0] & 7 != 4
+        or response[0] >> 6 == 3
+        or not 1 <= response[1] <= 15
+    ):
         raise RuntimeError("Invalid response")
 
     ntp_seconds = struct.unpack("!I", response[40:44])[0]
@@ -143,10 +152,8 @@ async def update_time():
     now = time.gmtime(ntp_seconds - ntp_delta)
     if now[0] < 2024 or now[0] > 2100:
         raise RuntimeError("Invalid time")
-    RTC().datetime((now[0], now[1], now[2], now[6] + 1,
-                    now[3], now[4], now[5], 0))
-    return ("{:04d}-{:02d}-{:02d}\n{:02d}:{:02d}:{:02d} UTC"
-            .format(now[0], now[1], now[2], now[3], now[4], now[5]))
+    RTC().datetime((now[0], now[1], now[2], now[6] + 1, now[3], now[4], now[5], 0))
+    return f"{now[0]:04d}-{now[1]:02d}-{now[2]:02d}\n{now[3]:02d}:{now[4]:02d}:{now[5]:02d} UTC"
 
 
 async def fetch_name():
@@ -161,11 +168,9 @@ async def fetch_name():
 
         try:
             stream, _ = await asyncio.wait_for_ms(
-                asyncio.open_connection(
-                    HOST, 443, ssl=context, server_hostname=HOST),
-                NETWORK_TIMEOUT_MS)
-            request = "GET /getname/{} HTTP/1.0\r\nHost: {}\r\n\r\n".format(
-                device_id, HOST)
+                asyncio.open_connection(HOST, 443, ssl=context, server_hostname=HOST), NETWORK_TIMEOUT_MS
+            )
+            request = f"GET /getname/{device_id} HTTP/1.0\r\nHost: {HOST}\r\n\r\n"
             stream.write(request.encode())
             # MicroPython performs the asynchronous TLS handshake here.
             await asyncio.wait_for_ms(stream.drain(), NETWORK_TIMEOUT_MS)
@@ -180,8 +185,7 @@ async def fetch_name():
         response = b""
         try:
             while True:
-                chunk = await asyncio.wait_for_ms(
-                    stream.read(512), NETWORK_TIMEOUT_MS)
+                chunk = await asyncio.wait_for_ms(stream.read(512), NETWORK_TIMEOUT_MS)
                 if not chunk:
                     break
                 response += chunk
@@ -251,7 +255,7 @@ async def run_fetch():
         return True
     except Exception as error:
         print("Fetch error:", error)
-        show("Fetch error: {}\nBACK to exit".format(error))
+        show(f"Fetch error: {error}\nBACK to exit")
         return False
 
     config["holder_name"] = name
@@ -261,7 +265,7 @@ async def run_fetch():
         print("Save error:", error)
         show("Name fetched; save error")
         return False
-    show("Name: {}\nBACK to exit".format(name))
+    show(f"Name: {name}\nBACK to exit")
     return False
 
 
@@ -280,8 +284,7 @@ async def wait_for_action(allow_retry):
     while True:
         if back.value() == 0:
             return "back"
-        if allow_retry and (select_button.value() == 0
-                            or next_button.value() == 0):
+        if allow_retry and (select_button.value() == 0 or next_button.value() == 0):
             # Do not carry the retry press into the newly-started attempt.
             while select_button.value() == 0 or next_button.value() == 0:
                 if back.value() == 0:

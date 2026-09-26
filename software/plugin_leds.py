@@ -2,8 +2,11 @@
 
 import math
 import time
+
 import uasyncio as asyncio
-from machine import Pin, PWM
+
+from machine import PWM
+from machine import Pin
 
 
 LED_PINS = (6, 7)
@@ -23,7 +26,7 @@ def duties(effect, elapsed_ms):
         # Three quick alternations, then hold; reverse on the next half-cycle.
         phase = elapsed_ms % 1200
         pulse = phase % 600
-        on = pulse < 100 or 200 <= pulse < 300 or 400 <= pulse
+        on = pulse < 100 or 200 <= pulse < 300 or pulse >= 400
         first = MAX_DUTY if on != (phase >= 600) else 0
     else:
         phase = 2 * math.pi * (elapsed_ms % 3000) / 3000
