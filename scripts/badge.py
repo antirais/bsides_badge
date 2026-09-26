@@ -85,7 +85,7 @@ def run(
     *,
     check: bool = True,
     capture: bool = True,
-    timeout: int | None = 10,
+    timeout: int | None = 20,
 ) -> CompletedProcess[str]:
     cmd = shlex.join(command)
     log.debug("executing command: %s", cmd)
