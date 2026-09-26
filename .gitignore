@@ -1,5 +1,6 @@
 .history
 .vscode
 .cache/
-__pycache__/
+.venv/
 *.pyc
+__pycache__/
