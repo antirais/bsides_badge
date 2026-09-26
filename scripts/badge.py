@@ -33,7 +33,7 @@ from rich.logging import RichHandler
 
 LOG_LEVEL = logging.getLevelNamesMapping().get(
     os.getenv("LOG_LEVEL", "").upper(),
-    "INFO",
+    "WARNING",
 )
 logging.basicConfig(
     format="{message}",
@@ -430,7 +430,7 @@ def command_init(args: argparse.Namespace) -> None:
     ensure_tools(install=True)
     firmware = latest_firmware()
     path = download_firmware(firmware, args.firmware_dir)
-    print(f"Ready: MicroPython {firmware.version} at {path}")
+    print(f"MicroPython {firmware.version} at {path}")
 
 
 def command_upload(args: argparse.Namespace) -> str | None:
