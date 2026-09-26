@@ -88,7 +88,8 @@ class GameScreen(bsides.Screen):
         self.wing = 0
         self.flaps = 0
 
-        param = getattr(bsides, "flappy_high_score", None)
+        # TODO: hack to request config settings
+        param = getattr(bsides, "flappy_easy_high_score", None)
         self.high_score = param.value if param else 0
 
         self.mid_y = (self.top + self.ground - BIRD_H) // 2
@@ -168,7 +169,7 @@ class GameScreen(bsides.Screen):
         if self.score > self.high_score:
             self.high_score = self.score
             try:
-                bsides.flappy_high_score.value = self.high_score
+                bsides.flappy_easy_high_score.value = self.high_score
                 bsides.save_params()
             except Exception:
                 pass

@@ -138,7 +138,8 @@ flappy_high_score = Parameter("FlappyHighScore", 0, 9999)
 params["FlappyHighScore"] = flappy_high_score
 
 # --- Flappy Bird Easy high score param (persistent in badge.json) ---
-params["FlappyEasyHighScore"] = Parameter("FlappyEasyHighScore", 0, 9999)
+flappy_easy_high_score = Parameter("FlappyEasyHighScore", 0, 9999)
+params["FlappyEasyHighScore"] = flappy_easy_high_score
 
 
 def save_params():
