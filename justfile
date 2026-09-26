@@ -52,3 +52,8 @@ name name:
 delete:
     #!/bin/bash
     uv run scripts/badge.py delete --port {{DEVICE}}
+
+# reads badge.json on the badge filesystem
+badge-config:
+    #!/bin/bash
+    uv run mpremote fs cat badge.json | yq -y
