@@ -1,0 +1,74 @@
+# rumdl configuration file
+
+# Global configuration options
+[global]
+# List of rules to disable (uncomment and modify as needed)
+disable = [
+    "MD013", # Line length should not be excessive
+    "MD033", # Inline HTML is not allowed
+]
+
+# List of rules to enable exclusively (if provided, only these rules will run)
+# enable = ["MD001", "MD003", "MD004"]
+
+# List of file/directory patterns to include for linting (if provided, only these will be linted)
+# include = []
+
+# List of file/directory patterns to exclude from linting
+exclude = [
+    # Common directories to exclude
+    ".git",
+    ".github",
+    ".gitlab",
+    "node_modules",
+    "vendor",
+    "dist",
+    "build",
+]
+
+# Respect .gitignore files when scanning directories (default: true)
+respect_gitignore = true
+
+# Markdown flavor/dialect (uncomment to enable)
+# Options: mkdocs, gfm, commonmark
+flavor = "gfm"
+
+# Rule-specific configurations (uncomment and modify as needed)
+
+[MD003]
+style = "atx"  # Heading style (atx, atx_closed, setext)
+
+# [MD004]
+# style = "asterisk"  # Unordered list style (asterisk, plus, dash, consistent)
+
+# [MD007]
+# indent = 4  # Unordered list indentation
+
+[MD009]
+# br-spaces = 2                  # Number of spaces for hard line breaks (default: 2)
+strict = true                  # Remove all trailing spaces, even line breaks (default: false)
+# list-item-empty-lines = false  # Allow trailing spaces in empty list item lines (default: false)
+
+# [MD010]
+# spaces-per-tab = 4  # Number of spaces to replace each tab with (default: 4)
+
+[MD012]
+maximum = 2  # Maximum number of consecutive blank lines allowed (default: 1)
+
+[MD044]
+# Proper names that should be capitalized correctlys
+names = [
+    "rumdl",
+    "Markdown",
+    "GitHub",
+]
+code-blocks = false  # Exclude code blocks from proper name check
+
+[MD055]
+style = "leading-and-trailing"
+
+# https://github.com/rvben/rumdl/blob/main/docs/md060.md
+[MD060]
+enabled = true
+style = "aligned"
+max-width = 1024 # we like wide tables in text files

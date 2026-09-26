@@ -13,6 +13,11 @@ help:
     echo -e "{{YELLOW}}[*] usage: {{GREEN}}just <target>{{NORMAL}}"
     just --list --list-heading "" --unsorted
 
+# format MarkDown files
+rumdl:
+    #!/bin/bash
+    uv run rumdl fmt
+
 # install and checks dependencies
 init:
     #!/bin/bash
