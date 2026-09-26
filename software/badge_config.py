@@ -1,5 +1,7 @@
+import contextlib
 import json
 import os
+
 import ubinascii
 import urandom
 
@@ -52,13 +54,14 @@ def default_config():
 
 
 def is_valid_device_id(value):
-    if not isinstance(value, str) or len(value) != 12:
+    MAX_DIGITS = 12
+    if not isinstance(value, str) or len(value) != MAX_DIGITS:
         return False
     try:
         int(value, 16)
-        return True
     except ValueError:
         return False
+    return True
 
 
 def format_device_id(value):
@@ -68,7 +71,7 @@ def format_device_id(value):
 
 def _read_text(filename):
     try:
-        with open(filename, "r") as stream:
+        with open(filename) as stream:
             return stream.read().strip()
     except OSError:
         return ""
@@ -76,7 +79,7 @@ def _read_text(filename):
 
 def _read_json(filename):
     try:
-        with open(filename, "r") as stream:
+        with open(filename) as stream:
             value = json.load(stream)
             return value if isinstance(value, dict) else {}
     except (OSError, ValueError):
@@ -90,10 +93,8 @@ def save_badge_config(config):
 
 def _remove_legacy_files():
     for filename in ("params.json", "id.txt", "yourname.txt"):
-        try:
+        with contextlib.suppress(OSError):
             os.remove(filename)
-        except OSError:
-            pass
 
 
 def load_badge_config():

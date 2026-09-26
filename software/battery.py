@@ -32,7 +32,8 @@ def estimate_soc(voltage):
 
 def read_battery_voltage(pin_number, samples=8):
     """Read VBAT through the 2026 badge's GPIO4 voltage divider."""
-    from machine import ADC, Pin
+    from machine import ADC
+    from machine import Pin
 
     adc = ADC(Pin(pin_number))
     try:
