@@ -104,7 +104,7 @@ def parse_latest_firmware(page: str, base_url: str = DOWNLOAD_PAGE) -> Firmware:
 def latest_firmware() -> Firmware:
     request = urllib.request.Request(DOWNLOAD_PAGE, headers={"User-Agent": "bsides-badge-tool"})
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310
             page = response.read().decode("utf-8", "replace")
     except OSError as exc:
         raise BadgeToolError(f"Could not query MicroPython downloads: {exc}") from exc
@@ -119,7 +119,7 @@ def download_firmware(firmware: Firmware, directory: Path) -> Path:
         return destination
     print(f"Downloading MicroPython {firmware.version}...")
     try:
-        with urllib.request.urlopen(firmware.url, timeout=60) as response:
+        with urllib.request.urlopen(firmware.url, timeout=60) as response:  # noqa: S310
             data = response.read()
         destination.write_bytes(data)
     except OSError as exc:
@@ -141,10 +141,12 @@ def detect_port(explicit: str | None) -> str | None:
     if not ports:
         print("No serial port found; tools will use auto-detection.")
         return None
+
+    DEFAULT_PORT = 0x303A
     likely = [
         port
         for port in ports
-        if port.vid == 0x303A
+        if port.vid == DEFAULT_PORT
         or any(
             word in f"{port.description} {port.manufacturer} {port.product}".lower()
             for word in ("espressif", "esp32", "usb jtag/serial")
@@ -232,7 +234,7 @@ def git_commit_info() -> str:
         ).stdout.strip()
         if dirty:
             print("Warning: the working tree has uncommitted changes; git info identifies HEAD.")
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         return "unknown"
     return f"{commit} {branch}"
 
