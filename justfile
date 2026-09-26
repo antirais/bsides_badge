@@ -33,12 +33,12 @@ upload badge-version=BADGE_VERSION:
     #!/bin/bash
     uv run scripts/badge.py upload --badge-version {{badge-version}} --port {{DEVICE}}
 
-# erase the chip, flash that image, and upload the application
+# erase the chip, flash that image, and upload the application - restores previous settings
 flash badge-version=BADGE_VERSION:
     #!/bin/bash
     uv run scripts/badge.py flash --badge-version {{badge-version}} --port {{DEVICE}}
 
-# erase the chip, flash that image, and upload the application
+# erase the chip, flash that image, and upload the application - does not restore previous settings
 wipe badge-version=BADGE_VERSION:
     #!/bin/bash
     uv run scripts/badge.py flash --wipe --badge-version {{badge-version}} --port {{DEVICE}}
