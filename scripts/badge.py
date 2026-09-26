@@ -227,7 +227,7 @@ def load_local_defaults() -> dict[str, Any]:
 def read_remote_config(port: str | None) -> dict[str, Any]:
     config = extract_json(remote_read(port, "badge.json"))
     if config:
-        log.debug("remote config: \n%s", config)
+        log.debug("remote config: \n%s", json.dumps(config))
         return config
 
     # Upgrade badges that still have the original three settings files.
