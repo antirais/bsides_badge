@@ -5,11 +5,11 @@ badge.
 
 ## Supported hardware
 
-| Badge version | OLED address | SELECT | Battery measurement | Appearance |
-| --- | --- | --- | --- | --- |
-| `2025_prototype` | `0x3D` | GPIO4 | No | Cylindrical battery, empty back side |
-| `2025` | `0x3C` | GPIO4 | No | Cylindrical battery, "BSIDES #5" and wolf on the back side |
-| `2026` | `0x3C` | GPIO10 | GPIO4 / ADC1_CH4 | Flat LiPo battery, "BSIDES #6" and wolf on the back side |
+| Badge version    | OLED address | SELECT | Battery measurement | Appearance                                                 |
+| ---------------- | ------------ | ------ | ------------------- | ---------------------------------------------------------- |
+| `2025_prototype` | `0x3D`       | GPIO4  | No                  | Cylindrical battery, empty back side                       |
+| `2025`           | `0x3C`       | GPIO4  | No                  | Cylindrical battery, "BSIDES #5" and wolf on the back side |
+| `2026`           | `0x3C`       | GPIO10 | GPIO4 / ADC1_CH4    | Flat LiPo battery, "BSIDES #6" and wolf on the back side   |
 
 The 2026 battery input uses the schematic's 100 kΩ / 20 kΩ divider. The status
 screen multiplies the ADC voltage by six and estimates LiPo state of charge from
@@ -88,6 +88,7 @@ port detection, filtering, configuration migration, and release discovery stay
 consistent across platforms.
 
 (Linux) Make sure to add your user to `dialout` group to access the hardware serial port. Log-out/in or restart after this command.
+
 ```console
 sudo usermod -aG dialout "$USER"
 ```
@@ -160,7 +161,7 @@ resetting or power-cycling the badge. The correct SELECT pin is chosen from
 `badge.json` on both 2025 and 2026 hardware.
 
 If your badge is somehow bricked (wrong version flashed, etc.) and does not
-respond to `esptool`, try  holding down BACK button (GPIO9) while resetting
+respond to `esptool`, try holding down BACK button (GPIO9) while resetting
 or turning your badge on. This will start ESP32 in bootloader mode.
 
 Run `python scripts/badge.py --help` or a subcommand with `--help` for all
