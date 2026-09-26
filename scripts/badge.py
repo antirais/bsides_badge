@@ -21,6 +21,7 @@ import urllib.parse
 import urllib.request
 
 from dataclasses import dataclass
+from enum import IntEnum
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -100,7 +101,7 @@ def tool_command(tool: str) -> list[str] | None:
     return [executable] if executable else None
 
 
-def ensure_tools(install: bool) -> None:  # noqa: FBT001
+def ensure_tools(install: bool = False) -> None:  # noqa: FBT001
     packages = [package for package in ("esptool", "mpremote") if tool_command(package) is None]
     if not packages:
         log.debug("esptool and mpremote are installed")
@@ -434,7 +435,7 @@ def command_init(args: argparse.Namespace) -> None:
 
 
 def command_upload(args: argparse.Namespace) -> str | None:
-    ensure_tools(install=False)
+    ensure_tools()
     version = require_badge_version(args.badge_version)
     port = detect_port(args.port)
     maybe_check_firmware(port, args.skip_version_check)
@@ -445,8 +446,8 @@ def command_upload(args: argparse.Namespace) -> str | None:
 
 
 def command_flash(args: argparse.Namespace) -> str | None:
+    ensure_tools()
     version = require_badge_version(args.badge_version)
-    ensure_tools(install=True)
     firmware = latest_firmware()
     image = download_firmware(firmware, args.firmware_dir)
     port = detect_port(args.port)
@@ -467,7 +468,7 @@ def command_flash(args: argparse.Namespace) -> str | None:
 
 
 def command_delete(args: argparse.Namespace) -> str | None:
-    ensure_tools(install=False)
+    ensure_tools()
     port = detect_port(args.port)
     config = read_remote_config(port)
     battery_line = battery_voltage_line(port, config)
@@ -496,7 +497,7 @@ def command_delete(args: argparse.Namespace) -> str | None:
 
 
 def command_name(args: argparse.Namespace) -> str | None:
-    ensure_tools(install=False)
+    ensure_tools()
     port = detect_port(args.port)
     maybe_check_firmware(port, args.skip_version_check)
     remote = read_remote_config(port)
@@ -604,19 +605,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+class ReturnCode(IntEnum):
+    ERROR = 1
+    USER_EXIT = 130
+    OK = 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         final_line = args.handler(args)
     except BadgeToolError, OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired:
         log.exception("error")
-        return 1
+        return ReturnCode.ERROR
     except KeyboardInterrupt:
         print("Interrupted.", file=sys.stderr)
-        return 130
+        return ReturnCode.USER_EXIT
     if final_line:
         print(final_line)
-    return 0
+    return ReturnCode.OK
 
 
 if __name__ == "__main__":
